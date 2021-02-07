@@ -33,11 +33,18 @@ class SpotifyDl:
         
     
     def login(self):
+        """
+            Login to user account 
+        """
+        #Loading Credentials from .env file. Remove load_dotenv() and replace arguments with credentials
+        #Get Credentials from https://developer.spotify.com/dashboard
+
         load_dotenv()
         self.sp = spotipy.Spotify(client_credentials_manager=SpotifyOAuth(client_id=os.getenv('SPOTIFY_CLIENT'),
                                                client_secret=os.getenv('SPOTIFY_SECRET'),
                                                redirect_uri="http://localhost:8080",
                                                scope="playlist-read-private,user-library-read,user-read-currently-playing,user-read-playback-state,playlist-modify-private,user-modify-playback-state"))
+        
         me = self.sp.me()
         self.uid = me['id']
         self.name = me['display_name']
@@ -67,30 +74,71 @@ class SpotifyDl:
             all_playlists.extend(playlist['items'])
         return all_playlists
 
-    def downloadSongsWithDb(self,songs,playlistName):
+    def downloadSongs(self,songs : list,playlistName : str):
+
         playlist = m3uFile(playlistName)
+
         path = self.saveLocation+'/'+self.uid
         if not os.path.isdir(path):
             os.mkdir(path)
-        for i in songs:
-            artists = ', '.join([x['name'] for x in i['track']['artists']])
-            if not self.dbHelper.isNew(self.uid,i['track']['id']):
-                playlist.addSong(getTime(path+'/'+i['track']['name']+'.mp3'),i['track']['name'],artists)
-                continue
-            s = i['track']['name']+' by '+artists
-            thumb = getThumbnail(i['track'])
-            downloadThumb(thumb,i['track']['id'])
-            savedas = downloadSong(getYoutubeUrl(s),i['track']['name'],path)
-            retryIfFailed = 3
-            while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
-                savedas = downloadSong(getYoutubeUrl(s),i['track']['name'],path)
-                retryIfFailed -= 1
-                time.sleep(.5)
-            if os.path.isfile(savedas):
-                convert_and_split(savedas)
-                addImage('.'.join(savedas.split('.')[:-1])+'.mp3','thumb/'+i['track']['id']+'.jpeg',i['track']['name'],artists)
-                playlist.addSong(getTime(path+'/'+i['track']['name']+'.mp3'),i['track']['name'],artists)
-                self.dbHelper.insertData(self.uid,i['track']['id'])
+
+        if self.useDb:
+            for i in songs:
+                artists = ', '.join([x['name'] for x in i['track']['artists']])
+
+                
+                if not self.dbHelper.isNew(self.uid,i['track']['id']):
+                    savedData = self.dbHelper.getData(self.uid,i['track']['id'])
+                    playlist.addSong(str(savedData),i['track']['name'],artists)
+                    continue
+                
+                thumb = getThumbnail(i['track'])
+                downloadThumb(thumb,i['track']['id'])
+
+                searchQuery = i['track']['name']+' by '+artists
+                savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+
+                retryIfFailed = 3
+                while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                    savedas = downloadSong(getYoutubeUrl(s),i['track']['name'],path)
+                    retryIfFailed -= 1
+                    time.sleep(.5)
+
+                if os.path.isfile(savedas):
+                    convert_and_split(savedas)
+                    addImage('.'.join(savedas.split('.')[:-1])+'.mp3','thumb/'+i['track']['id']+'.jpeg',i['track']['name'],artists)
+
+                    t = getTime(path+'/'+i['track']['name']+'.mp3')
+                    playlist.addSong(t,i['track']['name'],artists)
+
+                    self.dbHelper.insertData(self.uid,i['track']['id'],t)
+            
+        else:
+            path += ('/'+playlistName.replace('/',''))
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            for i in songs:
+                artists = ', '.join([x['name'] for x in i['track']['artists']])
+                
+                thumb = getThumbnail(i['track'])
+                downloadThumb(thumb,i['track']['id'])
+
+                searchQuery = i['track']['name']+' by '+artists
+                savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+
+                retryIfFailed = 3
+                while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                    savedas = downloadSong(getYoutubeUrl(s),i['track']['name'],path)
+                    retryIfFailed -= 1
+                    time.sleep(.5)
+
+                if os.path.isfile(savedas):
+                    convert_and_split(savedas)
+                    addImage('.'.join(savedas.split('.')[:-1])+'.mp3','thumb/'+i['track']['id']+'.jpeg',i['track']['name'],artists)
+
+                    t = getTime(path+'/'+i['track']['name']+'.mp3')
+                    playlist.addSong(t,i['track']['name'],artists)
+
         playlist.createPlaylistFile()
 
 
@@ -108,9 +156,10 @@ class SpotifyDl:
         self.printer.text('1. Download Saved Songs').bold().show()
         self.printer.text('2. Download A Playlist').bold().show()
         self.printer.text('3. Change User ').bold().show()
+        self.printer.text('4. Exit ').bold().show()
         self.printer.blanks('-').show()
         ch = int(input("Enter Your Choice: "))
-        while ch<=0 and ch>3:
+        while ch<=0 and ch>4:
             self.printer.text("Invalid Choice!").center().bold().red().show()
             ch = int(input("Enter Your Choice: "))
         return ch
@@ -131,22 +180,30 @@ class SpotifyDl:
         """
         self.login()
         self.greet()
-        ch = self.__print_menu()
+        while True:
+            ch = self.__print_menu()
 
-        if ch == 1:
-            songs = self.getAllSavedSongs()
-            self.downloadSongsWithDb(songs,'Saved/Liked')
-        
-        if ch == 2:
-            all_playlists = self.getAllPlaylists()
-            k = 1
-            for i in all_playlists:
-                print(str(k)+': '+i['name'])
-                print()
-                k+=1
-            choice = int(input("Select Playlist to download:"))
-            play = self.sp.playlist(all_playlists[choice-1]['id'])
-            self.downloadSongsWithDb(play['tracks']['items'],play['name'])
+            if ch == 1:
+                songs = self.getAllSavedSongs()
+                self.downloadSongs(songs,'Saved/Liked')
+            
+            if ch == 2:
+                all_playlists = self.getAllPlaylists()
+                k = 1
+                for i in all_playlists:
+                    print(str(k)+': '+i['name'])
+                    print()
+                    k+=1
+                choice = int(input("Select Playlist to download:"))
+                play = self.sp.playlist(all_playlists[choice-1]['id'])
+                self.downloadSongs(play['tracks']['items'],play['name'])
+            
+            if ch == 3:
+                self.changeUser()
+                self.greet()
+
+            if ch == 4:
+                exit()
 
     def __del__(self):
         if(self.dbHelper != None):
