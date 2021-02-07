@@ -1,0 +1,13 @@
+certifi==2020.12.5
+chardet==4.0.0
+idna==2.10
+mutagen==1.45.1
+pafy==0.5.5
+printplus==1
+python-dotenv==0.15.0
+requests==2.25.1
+six==1.15.0
+spotipy==2.16.1
+urllib3==1.26.3
+youtube-dl==2021.2.4.1
+youtube-search==1.1.1
