@@ -100,7 +100,7 @@ class SpotifyDl:
 
                 retryIfFailed = 3
                 while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
-                    savedas = downloadSong(getYoutubeUrl(s),i['track']['name'],path)
+                    savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
                     retryIfFailed -= 1
                     time.sleep(.5)
 
@@ -128,7 +128,7 @@ class SpotifyDl:
 
                 retryIfFailed = 3
                 while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
-                    savedas = downloadSong(getYoutubeUrl(s),i['track']['name'],path)
+                    savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
                     retryIfFailed -= 1
                     time.sleep(.5)
 
