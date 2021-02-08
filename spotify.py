@@ -76,7 +76,7 @@ class SpotifyDl:
 
     def downloadSongs(self,songs : list,playlistName : str):
 
-        playlist = m3uFile(playlistName)
+        playlist = m3uFile(playlistName.replace('/',''))
 
         path = self.saveLocation+'/'+self.uid
         if not os.path.isdir(path):
@@ -92,19 +92,32 @@ class SpotifyDl:
                     playlist.addSong(str(savedData),i['track']['name'],artists)
                     continue
                 
-                thumb = getThumbnail(i['track'])
-                downloadThumb(thumb,i['track']['id'])
-
-                searchQuery = i['track']['name']+' by '+artists
-                savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
-
-                retryIfFailed = 3
-                while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                
+                try:
+                    searchQuery = i['track']['name']+' by '+artists
                     savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
-                    retryIfFailed -= 1
-                    time.sleep(.5)
+
+                    retryIfFailed = 3
+                    while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                        savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+                        retryIfFailed -= 1
+                        time.sleep(.5)
+                except:
+                    try:
+                        searchQuery = i['track']['name']+' by '+artists
+                        savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+
+                        retryIfFailed = 3
+                        while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                            savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+                            retryIfFailed -= 1
+                            time.sleep(.5)
+                    except:
+                        continue
 
                 if os.path.isfile(savedas):
+                    thumb = getThumbnail(i['track'])
+                    downloadThumb(thumb,i['track']['id'])
                     convert_and_split(savedas)
                     addImage('.'.join(savedas.split('.')[:-1])+'.mp3','thumb/'+i['track']['id']+'.jpeg',i['track']['name'],artists)
 
@@ -118,21 +131,41 @@ class SpotifyDl:
             if not os.path.isdir(path):
                 os.mkdir(path)
             for i in songs:
+                if os.path.isfile(path+i['track']['name']):
+                    t = getTime(path+'/'+i['track']['name']+'.mp3')
+                    playlist.addSong(t,i['track']['name'],artists)
+                    continue
+
                 artists = ', '.join([x['name'] for x in i['track']['artists']])
                 
-                thumb = getThumbnail(i['track'])
-                downloadThumb(thumb,i['track']['id'])
+                
 
-                searchQuery = i['track']['name']+' by '+artists
-                savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
-
-                retryIfFailed = 3
-                while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                try:
+                    searchQuery = i['track']['name']+' by '+artists
                     savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
-                    retryIfFailed -= 1
-                    time.sleep(.5)
+
+                    retryIfFailed = 3
+                    while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                        savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+                        retryIfFailed -= 1
+                        time.sleep(.5)
+                except:
+                    try:
+                        searchQuery = i['track']['name']+' by '+artists
+                        savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+
+                        retryIfFailed = 3
+                        while retryIfFailed >= 0 and (not os.path.isfile(savedas)) :
+                            savedas = downloadSong(getYoutubeUrl(searchQuery),i['track']['name'],path)
+                            retryIfFailed -= 1
+                            time.sleep(.5)
+                    except:
+                        continue
 
                 if os.path.isfile(savedas):
+                    thumb = getThumbnail(i['track'])
+                    downloadThumb(thumb,i['track']['id'])
+                    
                     convert_and_split(savedas)
                     addImage('.'.join(savedas.split('.')[:-1])+'.mp3','thumb/'+i['track']['id']+'.jpeg',i['track']['name'],artists)
 
